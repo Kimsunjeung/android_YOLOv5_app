@@ -12,6 +12,7 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
 import android.Manifest;
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -47,7 +48,7 @@ import java.util.List;
 
 public class MainActivity extends AppCompatActivity implements Runnable {
     private int mImageIndex = 0;
-    private String[] mTestImages = {"1.jpg", "2.jpg", "3.jpg", "sun-4.jpg", "5.jpg", "6.jpg", "7.jpg", "test1.png", "test2.jpg", "test3.png"};
+    private final String[] mTestImages = {"1.jpg", "2.jpg", "3.jpg", "sun-4.jpg", "5.jpg", "6.jpg", "7.jpg", "test1.png", "test2.jpg", "test3.png"};
 
     private ImageView mImageView;
     private ResultView mResultView;
@@ -76,6 +77,7 @@ public class MainActivity extends AppCompatActivity implements Runnable {
         }
     }
 
+    @SuppressLint({"DefaultLocale", "SetTextI18n", "QueryPermissionsNeeded"})
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -104,80 +106,72 @@ public class MainActivity extends AppCompatActivity implements Runnable {
 
         final Button buttonTest = findViewById(R.id.testButton);
         buttonTest.setText(("Test Image 1/10"));
-        buttonTest.setOnClickListener(new View.OnClickListener() {
-            public void onClick(View v) {
-                mResultView.setVisibility(View.INVISIBLE);
-                mImageIndex = (mImageIndex + 1) % mTestImages.length;
-                buttonTest.setText(String.format("Test Image %d/%d", mImageIndex + 1, mTestImages.length));
+        buttonTest.setOnClickListener(v -> {
+            mResultView.setVisibility(View.INVISIBLE);
+            mImageIndex = (mImageIndex + 1) % mTestImages.length;
+            buttonTest.setText(String.format("Test Image %d/%d", mImageIndex + 1 , mTestImages.length));
 
-                try {
-                    mBitmap = BitmapFactory.decodeStream(getAssets().open(mTestImages[mImageIndex]));
-                    mImageView.setImageBitmap(mBitmap);
-                } catch (IOException e) {
-                    Log.e("Object Detection", "Error reading assets", e);
-                    finish();
-                }
+            try {
+                mBitmap = BitmapFactory.decodeStream(getAssets().open(mTestImages[mImageIndex]));
+                mImageView.setImageBitmap(mBitmap);
+            } catch (IOException e) {
+                Log.e("Object Detection", "Error reading assets", e);
+                finish();
             }
         });
 
 
         final Button buttonSelect = findViewById(R.id.selectButton);
-        buttonSelect.setOnClickListener(new View.OnClickListener() {
-            public void onClick(View v) {
-                mResultView.setVisibility(View.INVISIBLE);
+        buttonSelect.setOnClickListener(v -> {
+            mResultView.setVisibility(View.INVISIBLE);
 
-                final CharSequence[] options = { "Choose from Photos", "Take Picture", "Cancel" };
-                AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
-                builder.setTitle("New Test Image");
+            final CharSequence[] options = { "Choose from Photos", "Take Picture", "Cancel" };
+            AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
+            builder.setTitle("New Test Image");
 
-                builder.setItems(options, new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int item) {
-                        if (options[item].equals("Take Picture")) {
-                            Intent takePicture = new Intent(android.provider.MediaStore.ACTION_IMAGE_CAPTURE);
-                            startActivityForResult(takePicture, 0);
-                        }
-                        else if (options[item].equals("Choose from Photos")) {
-                            Intent pickPhoto = new Intent(Intent.ACTION_PICK, android.provider.MediaStore.Images.Media.INTERNAL_CONTENT_URI);
-                            startActivityForResult(pickPhoto , 1);
-                        }
-                        else if (options[item].equals("Cancel")) {
-                            dialog.dismiss();
-                        }
-                    }
-                });
-                builder.show();
-            }
+            builder.setItems(options, (dialog, item) -> {
+                if (options[item].equals("Take Picture")) {
+                    Intent takePicture = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+
+                    //noinspection deprecation
+                    startActivityForResult(takePicture, 0);
+                }
+                else if (options[item].equals("Choose from Photos")) {
+                    Intent pickPhoto = new Intent(Intent.ACTION_PICK, MediaStore.Images.Media.INTERNAL_CONTENT_URI);
+                    //noinspection deprecation
+                    startActivityForResult(pickPhoto , 1);
+                }
+                else if (options[item].equals("Cancel")) {
+                    dialog.dismiss();
+                }
+            });
+            builder.show();
         });
 
         final Button buttonLive = findViewById(R.id.liveButton);
-        buttonLive.setOnClickListener(new View.OnClickListener() {
-            public void onClick(View v) {
-              final Intent intent = new Intent(MainActivity.this, ObjectDetectionActivity.class);
-              startActivity(intent);
-            }
+        buttonLive.setOnClickListener(v -> {
+          final Intent intent = new Intent(MainActivity.this, ObjectDetectionActivity.class);
+          startActivity(intent);
         });
 
         mButtonDetect = findViewById(R.id.detectButton);
-        mProgressBar = (ProgressBar) findViewById(R.id.progressBar);
-        mButtonDetect.setOnClickListener(new View.OnClickListener() {
-            public void onClick(View v) {
-                mButtonDetect.setEnabled(false);
-                mProgressBar.setVisibility(ProgressBar.VISIBLE);
-                mButtonDetect.setText(getString(R.string.run_model));
+        mProgressBar = findViewById(R.id.progressBar);
+        mButtonDetect.setOnClickListener(v -> {
+            mButtonDetect.setEnabled(false);
+            mProgressBar.setVisibility(ProgressBar.VISIBLE);
+            mButtonDetect.setText(getString(R.string.run_model));
 
-                mImgScaleX = (float)mBitmap.getWidth() / PrePostProcessor.mInputWidth;
-                mImgScaleY = (float)mBitmap.getHeight() / PrePostProcessor.mInputHeight;
+            mImgScaleX = (float)mBitmap.getWidth() / PrePostProcessor.mInputWidth;
+            mImgScaleY = (float)mBitmap.getHeight() / PrePostProcessor.mInputHeight;
 
-                mIvScaleX = (mBitmap.getWidth() > mBitmap.getHeight() ? (float)mImageView.getWidth() / mBitmap.getWidth() : (float)mImageView.getHeight() / mBitmap.getHeight());
-                mIvScaleY  = (mBitmap.getHeight() > mBitmap.getWidth() ? (float)mImageView.getHeight() / mBitmap.getHeight() : (float)mImageView.getWidth() / mBitmap.getWidth());
+            mIvScaleX = (mBitmap.getWidth() > mBitmap.getHeight() ? (float)mImageView.getWidth() / mBitmap.getWidth() : (float)mImageView.getHeight() / mBitmap.getHeight());
+            mIvScaleY  = (mBitmap.getHeight() > mBitmap.getWidth() ? (float)mImageView.getHeight() / mBitmap.getHeight() : (float)mImageView.getWidth() / mBitmap.getWidth());
 
-                mStartX = (mImageView.getWidth() - mIvScaleX * mBitmap.getWidth())/2;
-                mStartY = (mImageView.getHeight() -  mIvScaleY * mBitmap.getHeight())/2;
+            mStartX = (mImageView.getWidth() - mIvScaleX * mBitmap.getWidth())/2;
+            mStartY = (mImageView.getHeight() -  mIvScaleY * mBitmap.getHeight())/2;
 
-                Thread thread = new Thread(MainActivity.this);
-                thread.start();
-            }
+            Thread thread = new Thread(MainActivity.this);
+            thread.start();
         });
 
         try {
@@ -205,7 +199,8 @@ public class MainActivity extends AppCompatActivity implements Runnable {
                     if (resultCode == RESULT_OK && data != null) {
                         mBitmap = (Bitmap) data.getExtras().get("data");
                         Matrix matrix = new Matrix();
-                        matrix.postRotate(90.0f);
+//                        matrix.postRotate(90.0f);
+                        matrix.postRotate(0.0f);
                         mBitmap = Bitmap.createBitmap(mBitmap, 0, 0, mBitmap.getWidth(), mBitmap.getHeight(), matrix, true);
                         mImageView.setImageBitmap(mBitmap);
                     }
@@ -223,7 +218,8 @@ public class MainActivity extends AppCompatActivity implements Runnable {
                                 String picturePath = cursor.getString(columnIndex);
                                 mBitmap = BitmapFactory.decodeFile(picturePath);
                                 Matrix matrix = new Matrix();
-                                matrix.postRotate(90.0f);
+//                                matrix.postRotate(90.0f);
+                                matrix.postRotate(0.0f);
                                 mBitmap = Bitmap.createBitmap(mBitmap, 0, 0, mBitmap.getWidth(), mBitmap.getHeight(), matrix, true);
                                 mImageView.setImageBitmap(mBitmap);
                                 cursor.close();
